@@ -54,7 +54,6 @@ class Trainer:
                     if not self.running:
                         return
 
-            # Перерва між вправами (якщо не остання вправа)
             if idx < len(exercises) - 1:
                 rest_seconds = 30
                 self.update_callback(

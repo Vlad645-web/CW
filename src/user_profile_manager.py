@@ -75,7 +75,6 @@ class UserProfileManager:
 
     def update_exercise_feedback(self, profile, exercise_name, feedback):
         try:
-            # Якщо feedback вже є екземпляром перерахування ExerciseFeedback
             if isinstance(feedback, ExerciseFeedback):
                 profile.exercise_feedback[exercise_name] = feedback
             else:

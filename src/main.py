@@ -1,4 +1,10 @@
-﻿import customtkinter as ctk
+﻿from exercise_factory import ExerciseFactoryProvider
+from user_profile import UserProfile, ExerciseFeedback
+from training_plan_manager import TrainingPlanManager
+from training_archive_manager import TrainingArchiveManager
+from user_profile_manager import UserProfileManager
+from trainer import Trainer
+import customtkinter as ctk
 import json
 import os
 import random
@@ -14,12 +20,7 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 import math
-from exercise_factory import ExerciseFactoryProvider
-from user_profile import UserProfile, ExerciseFeedback
-from training_plan_manager import TrainingPlanManager
-from training_archive_manager import TrainingArchiveManager
-from user_profile_manager import UserProfileManager
-from trainer import Trainer
+
 
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
@@ -27,7 +28,7 @@ ctk.set_default_color_theme("green")
 class TrainingApplication(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Не штрафуйте пж")
+        self.title("Fitness Trainer")
         self.geometry("1000x700")
         self.configure(fg_color="#1e1e1e")
         self.profile_manager = UserProfileManager()
@@ -68,7 +69,7 @@ class TrainingApplication(ctk.CTk):
         self.timer_text = None
         self.timer_arc = None
         self.timer_label = None
-        self.exercise_status = {}  # Словник для відстеження статусу вправ
+        self.exercise_status = {}
         self.create_widgets()
         if self.profile_manager.is_user_profile_file_empty():
             self.show_profile_page()
@@ -198,7 +199,6 @@ class TrainingApplication(ctk.CTk):
         cards_container.grid_columnconfigure(0, weight=1)
         cards_container.grid_columnconfigure(1, weight=1)
 
-        # ------- Картка: Чому варто обрати нас -------
         why_us_lines = random.choice([
             [
                 "🔥 Індивідуальні плани тренувань під твої цілі та потреби.",
@@ -239,12 +239,11 @@ class TrainingApplication(ctk.CTk):
         why_us_title.pack(anchor="w", padx=15, pady=(15, 5))
         self.themed_widgets["labels"].append((why_us_title, "text_color", "text_accent"))
 
-        # Визначаємо неонові кольори для градієнта
-        start_color = (0, 255, 170)  # Бірюзово-зелений, як text_accent
-        end_color = (0, 180, 90)  # Більш темний, але з тієї ж гами
+        start_color = (0, 255, 170)
+        end_color = (0, 180, 90)
 
         for i, line in enumerate(why_us_lines):
-            factor = i / (len(why_us_lines) - 1) if len(why_us_lines) > 1 else 0  # Фактор для градієнта
+            factor = i / (len(why_us_lines) - 1) if len(why_us_lines) > 1 else 0
             gradient_color_rgb = interpolate_color(start_color, end_color, factor)
             # Конвертуємо RGB у hex
             gradient_color_hex = f"#{gradient_color_rgb[0]:02x}{gradient_color_rgb[1]:02x}{gradient_color_rgb[2]:02x}"
@@ -257,12 +256,11 @@ class TrainingApplication(ctk.CTk):
                 wraplength=480
             )
             if i == len(why_us_lines) - 1:
-                label.pack(anchor="w", padx=20, pady=(1, 10))  # Збільшуємо нижній відступ
+                label.pack(anchor="w", padx=20, pady=(1, 10))
             else:
                 label.pack(anchor="w", padx=20, pady=1)
             self.themed_widgets["labels"].append((label, "text_color", None))
 
-        # ------- Картка: Спільнота -------
         community_lines = random.choice([
             [
                 "💬 «Мотивує повертатися до тренувань щодня!» — Олена, 29",
@@ -317,7 +315,7 @@ class TrainingApplication(ctk.CTk):
                 wraplength=480
             )
             if i == len(community_lines) - 1:
-                label.pack(anchor="w", padx=20, pady=(1, 10))  # Збільшуємо нижній відступ
+                label.pack(anchor="w", padx=20, pady=(1, 10))
             else:
                 label.pack(anchor="w", padx=20, pady=1)
             self.themed_widgets["labels"].append((label, "text_color", None))
@@ -331,12 +329,12 @@ class TrainingApplication(ctk.CTk):
             time.sleep(duration / steps / 1000)
 
     def animate_button_hover(self, button, enter=True):
-        # Перевіряємо, чи кнопка належить до feedback_buttons або training_confirmation_buttons
+
         is_feedback_button = any(button == info["button"] for info in self.feedback_buttons.values())
         is_confirmation_button = any(button == info["button"] for info in self.training_confirmation_buttons.values())
 
         if is_feedback_button or is_confirmation_button:
-            # Знаходимо ключ кнопки в словнику
+
             button_key = None
             buttons_dict = self.feedback_buttons if is_feedback_button else self.training_confirmation_buttons
             for key, info in buttons_dict.items():
@@ -347,22 +345,21 @@ class TrainingApplication(ctk.CTk):
             if button_key:
                 selected = buttons_dict[button_key]["selected"]
                 if enter and not selected:
-                    # Підсвітка при наведенні, якщо кнопка не вибрана
+
                     button.configure(
                         border_width=2,
                         border_color=self.theme_colors[self.theme_var.get()]["shadow_color"],
                         fg_color=self.theme_colors[self.theme_var.get()]["button_hover"]
                     )
                 elif not selected:
-                    # Скидаємо підсвітку при виході, якщо кнопка не вибрана
+
                     button.configure(
                         border_width=0,
                         border_color="",
                         fg_color=self.theme_colors[self.theme_var.get()]["button_fg"]
                     )
-                # Для вибраних кнопок стан не змінюється при наведенні/виході
+
         else:
-            # Для інших кнопок (start_training_button, trainer_button, feedback_submit_button)
             button.configure(
                 border_width=2 if enter else 0,
                 border_color=self.theme_colors[self.theme_var.get()]["shadow_color"] if enter else "",
@@ -497,13 +494,13 @@ class TrainingApplication(ctk.CTk):
         self.themed_widgets["frames"].append((self.button_container, "fg_color", "inner_card_bg"))
         self.start_training_button = ctk.CTkButton(
             self.button_container,
-            text="🏋️Розпочати",  # Без пробілу між текстом і емодзі
+            text="🏋️Розпочати",
             font=("Roboto", 16),
             command=self.start_trainer_mode,
             fg_color=self.theme_colors["dark"]["button_active"],
             hover_color=self.theme_colors["dark"]["button_hover"],
             corner_radius=10,
-            width=150,  # Збільшено ширину для кращого розміщення тексту  # Додано внутрішні відступи для центрування
+            width=150,
         )
         self.start_training_button.bind("<Enter>",
                                         lambda e: self.animate_button_hover(self.start_training_button, True))
@@ -585,7 +582,7 @@ class TrainingApplication(ctk.CTk):
                     percent = self.timer_remaining / self.timer_duration
                     self.timer_canvas.itemconfig(self.timer_arc, extent=-360 * percent)
             except Exception:
-                break  # Віджет знищено — припиняємо таймер
+                break
 
             self.timer_remaining -= 1
             self.update()
@@ -726,14 +723,14 @@ class TrainingApplication(ctk.CTk):
             self._show_error("Оберіть зворотний зв’язок.")
             return
 
-        # Словник із повідомленнями для кожного типу відгуку
+
         feedback_messages = {
             "Easy": "Чудово, ви великий молодець! Тренування було легким, можливо, наступного разу спробуйте складніше?",
             "Normal": "Відмінна робота! Тренування пройшло як треба, продовжуйте в тому ж дусі!",
             "Hard": "Шкода, що було важко. Не хвилюйтеся, ми підлаштуємо наступний план, щоб було комфортніше!"
         }
 
-        # Вибираємо повідомлення або стандартне, якщо відгук нестандартний
+
         message = feedback_messages.get(feedback, "Зворотний зв’язок збережено, тренування додано до архіву.")
 
         self.apply_feedback(feedback)
@@ -942,7 +939,7 @@ class TrainingApplication(ctk.CTk):
         for widget in self.archive_frame.winfo_children():
             widget.destroy()
 
-        # Головний заголовок
+
         label = ctk.CTkLabel(
             self.archive_frame,
             text="Архів Тренувань",
@@ -952,7 +949,7 @@ class TrainingApplication(ctk.CTk):
         label.pack(pady=10)
         self.themed_widgets["labels"].append((label, "text_color", "text_color"))
 
-        # Контейнер для canvas і scrollbar
+
         canvas_container = ctk.CTkFrame(
             self.archive_frame,
             fg_color=self.theme_colors[self.theme_var.get()]["main_bg"]
@@ -960,7 +957,7 @@ class TrainingApplication(ctk.CTk):
         canvas_container.pack(fill="both", expand=True, padx=10, pady=(0, 10))
         self.themed_widgets["frames"].append((canvas_container, "fg_color", "main_bg"))
 
-        # Створення Canvas для прокрутки
+
         self.archive_canvas = ctk.CTkCanvas(
             canvas_container,
             bg=self.theme_colors[self.theme_var.get()]["main_bg"],
@@ -978,21 +975,20 @@ class TrainingApplication(ctk.CTk):
         self.archive_scrollbar.pack(side="right", fill="y")
         self.archive_canvas.configure(yscrollcommand=self.archive_scrollbar.set)
 
-        # Внутрішній фрейм для карток
+
         self.archive_frame_inner = ctk.CTkFrame(
             self.archive_canvas,
             fg_color=self.theme_colors[self.theme_var.get()]["main_bg"]
         )
         self.themed_widgets["frames"].append((self.archive_frame_inner, "fg_color", "main_bg"))
 
-        # Створення вікна в Canvas
+
         self.archive_window_id = self.archive_canvas.create_window(
             (0, 0),
             window=self.archive_frame_inner,
             anchor="nw"
         )
 
-        # Налаштування прокрутки при зміні розміру фрейму
         def update_scrollregion(event):
             self.archive_canvas.configure(scrollregion=self.archive_canvas.bbox("all"))
             # Оновлення ширини вікна, щоб відповідати ширині canvas
@@ -1001,7 +997,6 @@ class TrainingApplication(ctk.CTk):
 
         self.archive_frame_inner.bind("<Configure>", update_scrollregion)
 
-        # Кнопка очищення архіву
         clear_button = ctk.CTkButton(
             self.archive_frame,
             text="Очистити Архів",
@@ -1017,11 +1012,11 @@ class TrainingApplication(ctk.CTk):
         ])
 
     def update_archive_display(self):
-        # Очищення попередніх карток
+
         for widget in self.archive_frame_inner.winfo_children():
             widget.destroy()
 
-        # Завантаження архіву
+
         summary = self.archive_manager.get_archived_plans_summary()
         if not summary:
             no_data_label = ctk.CTkLabel(
@@ -1034,7 +1029,7 @@ class TrainingApplication(ctk.CTk):
             self.themed_widgets["labels"].append((no_data_label, "text_color", "text_color"))
         else:
             for entry in summary:
-                # Форматування дати та часу
+
                 date_time_parts = entry['date'].split()
                 if len(date_time_parts) > 1:
                     date_part = date_time_parts[0].split('-')
@@ -1044,7 +1039,7 @@ class TrainingApplication(ctk.CTk):
                     date_part = entry['date'].split('-')
                     formatted_date = f"{date_part[2]}.{date_part[1]}"
 
-                # Основна картка тренування
+
                 card = ctk.CTkFrame(
                     self.archive_frame_inner,
                     fg_color=self.theme_colors[self.theme_var.get()]["inner_card_bg"],
@@ -1053,7 +1048,7 @@ class TrainingApplication(ctk.CTk):
                 card.pack(fill="x", padx=20, pady=6)
                 card.grid_columnconfigure(0, weight=1)
 
-                # Внутрішній фрейм для підкарток і кнопки
+
                 inner_frame = ctk.CTkFrame(
                     card,
                     fg_color=self.theme_colors[self.theme_var.get()]["inner_card_bg"],
@@ -1062,7 +1057,7 @@ class TrainingApplication(ctk.CTk):
                 inner_frame.grid(row=0, column=0, sticky="w", padx=12, pady=12)
                 inner_frame.grid_columnconfigure(0, weight=1)
 
-                # Підкартка для дати
+
                 date_subcard = ctk.CTkFrame(
                     inner_frame,
                     fg_color="#2a2a2a",
@@ -1078,7 +1073,7 @@ class TrainingApplication(ctk.CTk):
                 )
                 date_label.pack(padx=10, pady=5)
 
-                # Підкартка для типу
+
                 type_subcard = ctk.CTkFrame(
                     inner_frame,
                     fg_color="#2a2a2a",
@@ -1094,7 +1089,7 @@ class TrainingApplication(ctk.CTk):
                 )
                 type_label.pack(padx=10, pady=5)
 
-                # Підкартка для калорій
+
                 calories_subcard = ctk.CTkFrame(
                     inner_frame,
                     fg_color="#2a2a2a",
@@ -1110,7 +1105,7 @@ class TrainingApplication(ctk.CTk):
                 )
                 calories_label.pack(padx=10, pady=5)
 
-                # Кнопка "Деталі"
+
                 button = ctk.CTkButton(
                     card,
                     text="Деталі",
@@ -1122,7 +1117,7 @@ class TrainingApplication(ctk.CTk):
                 )
                 button.grid(row=0, column=1, sticky="e", padx=12, pady=12)
 
-                # Додавання до темованих віджетів
+
                 self.themed_widgets["labels"].extend([
                     (date_label, "text_color", "text_color"),
                     (type_label, "text_color", "text_color"),
@@ -1140,20 +1135,20 @@ class TrainingApplication(ctk.CTk):
                     (calories_subcard, "fg_color", "inner_card_bg")
                 ])
 
-        # Оновлення області прокрутки після створення всіх карток
+
         self.archive_frame_inner.update_idletasks()
         canvas_width = self.archive_canvas.winfo_width()
         self.archive_canvas.configure(scrollregion=self.archive_canvas.bbox("all"))
         self.archive_canvas.itemconfigure(self.archive_window_id, width=canvas_width)
 
     def view_archive_details(self, index):
-        # Отримання деталей плану
+
         details = self.archive_manager.get_plan_details(index)
         if "error" in details:
             self._show_error(details["error"])
             return
 
-        # Створення модального вікна
+
         modal = ctk.CTkToplevel(self)
         modal.transient(self)
         modal.title("Деталі Тренування")
@@ -1161,7 +1156,7 @@ class TrainingApplication(ctk.CTk):
         modal.configure(fg_color=self.theme_colors[self.theme_var.get()]["main_bg"])
         self.themed_widgets["frames"].append((modal, "fg_color", "main_bg"))
 
-        # Основна картка
+
         card = ctk.CTkFrame(
             modal,
             fg_color=self.theme_colors[self.theme_var.get()]["card_bg"],
@@ -1170,7 +1165,7 @@ class TrainingApplication(ctk.CTk):
         card.pack(fill="both", expand=True, padx=10, pady=10)
         self.themed_widgets["frames"].append((card, "fg_color", "card_bg"))
 
-        # Заголовок
+
         label = ctk.CTkLabel(
             card,
             text=f"План: {details['type']}",
@@ -1180,7 +1175,6 @@ class TrainingApplication(ctk.CTk):
         label.pack(pady=10)
         self.themed_widgets["labels"].append((label, "text_color", "text_color"))
 
-        # Контейнер для прокрутки вправ
         canvas_container = ctk.CTkFrame(
             card,
             fg_color=self.theme_colors[self.theme_var.get()]["card_bg"]
@@ -1188,7 +1182,7 @@ class TrainingApplication(ctk.CTk):
         canvas_container.pack(fill="both", expand=True, padx=10, pady=5)
         self.themed_widgets["frames"].append((canvas_container, "fg_color", "card_bg"))
 
-        # Canvas для прокрутки
+
         canvas = ctk.CTkCanvas(
             canvas_container,
             bg=self.theme_colors[self.theme_var.get()]["canvas_bg"],
@@ -1197,7 +1191,7 @@ class TrainingApplication(ctk.CTk):
         canvas.pack(side="left", fill="both", expand=True)
         self.themed_widgets["canvases"].append((canvas, "bg", "canvas_bg"))
 
-        # Scrollbar
+
         scrollbar = ctk.CTkScrollbar(
             canvas_container,
             orientation="vertical",
@@ -1206,21 +1200,19 @@ class TrainingApplication(ctk.CTk):
         scrollbar.pack(side="right", fill="y")
         canvas.configure(yscrollcommand=scrollbar.set)
 
-        # Внутрішній фрейм для вправ
         exercises_frame = ctk.CTkFrame(
             canvas,
             fg_color=self.theme_colors[self.theme_var.get()]["card_bg"]
         )
         self.themed_widgets["frames"].append((exercises_frame, "fg_color", "card_bg"))
 
-        # Створення вікна в Canvas
+
         canvas_window_id = canvas.create_window(
             (0, 0),
             window=exercises_frame,
             anchor="nw"
         )
 
-        # Перевірка наявності вправ
         if not details["exercises"]:
             no_ex_label = ctk.CTkLabel(
                 exercises_frame,
@@ -1231,7 +1223,7 @@ class TrainingApplication(ctk.CTk):
             no_ex_label.pack(pady=10)
             self.themed_widgets["labels"].append((no_ex_label, "text_color", "text_color"))
         else:
-            # Додавання вправ
+
             for ex in details["exercises"]:
                 ex_card = ctk.CTkFrame(
                     exercises_frame,
@@ -1253,7 +1245,7 @@ class TrainingApplication(ctk.CTk):
                 ex_label.pack(anchor="w", padx=8, pady=6)
                 self.themed_widgets["labels"].append((ex_label, "text_color", "text_color"))
 
-        # Картка для калорій
+
         calories_card = ctk.CTkFrame(
             card,
             fg_color=self.theme_colors[self.theme_var.get()]["inner_card_bg"],
@@ -1271,7 +1263,7 @@ class TrainingApplication(ctk.CTk):
         calories_label.pack(pady=8)
         self.themed_widgets["labels"].append((calories_label, "text_color", "text_color"))
 
-        # Кнопка закриття
+
         button = ctk.CTkButton(
             card,
             text="Закрити",
@@ -1286,19 +1278,17 @@ class TrainingApplication(ctk.CTk):
             (button, "hover_color", "button_hover")
         ])
 
-        # Налаштування прокрутки
+
         def update_scrollregion(event):
             canvas.configure(scrollregion=canvas.bbox("all"))
             canvas_width = canvas.winfo_width()
-            canvas.itemconfigure(canvas_window_id, width=canvas_width - 4)  # Невеликий відступ
+            canvas.itemconfigure(canvas_window_id, width=canvas_width - 4)
 
         exercises_frame.bind("<Configure>", update_scrollregion)
 
-        # Примусове оновлення canvas після створення всіх елементів
         canvas.update_idletasks()
         canvas.configure(scrollregion=canvas.bbox("all"))
 
-        # Безпечне захоплення фокусу
         modal.grab_set()
         if modal.winfo_exists():
             modal.focus_set()
@@ -1306,7 +1296,7 @@ class TrainingApplication(ctk.CTk):
     def show_plan_details(self, index):
         plan_details = self.archive_manager.get_plan_details(index)
         modal = ctk.CTkToplevel(self)
-        modal.transient(self)  # Встановлюємо модальне вікно поверх головного
+        modal.transient(self)
         modal.title("Деталі Плану")
         modal.geometry("400x300")
         label = ctk.CTkLabel(modal, text=f"Тип: {plan_details['type']}", font=("Roboto", 16), text_color=self.theme_colors[self.theme_var.get()]["text_color"])
@@ -1329,12 +1319,10 @@ class TrainingApplication(ctk.CTk):
         self.update_archive_display()
 
     def setup_statistics_page(self):
-        """Ініціалізація сторінки статистики з верхньою карткою для гістограм та двома нижніми картками."""
-        # Очищення попередніх віджетів
+
         for widget in self.stats_frame.winfo_children():
             widget.destroy()
 
-        # Головний заголовок
         title_label = ctk.CTkLabel(
             self.stats_frame,
             text="Статистика по тренуванням",
@@ -1344,7 +1332,6 @@ class TrainingApplication(ctk.CTk):
         title_label.pack(pady=(10, 5))
         self.themed_widgets["labels"].append((title_label, "text_color", "text_color"))
 
-        # Підзаголовок
         subtitle_label = ctk.CTkLabel(
             self.stats_frame,
             text="Слідкуйте за прогресом своїх сесій!",
@@ -1354,7 +1341,6 @@ class TrainingApplication(ctk.CTk):
         subtitle_label.pack(pady=(0, 20))
         self.themed_widgets["labels"].append((subtitle_label, "text_color", "text_color"))
 
-        # Верхня картка для гістограм
         graph_frame = ctk.CTkFrame(
             self.stats_frame,
             fg_color=self.theme_colors[self.theme_var.get()]["card_bg"],
@@ -1363,7 +1349,6 @@ class TrainingApplication(ctk.CTk):
         graph_frame.pack(fill="both", expand=True, padx=20, pady=(0, 10))
         self.themed_widgets["frames"].append((graph_frame, "fg_color", "card_bg"))
 
-        # Заголовок графіка
         graph_title = ctk.CTkLabel(
             graph_frame,
             text="Кількість калорій (ккал)",
@@ -1373,18 +1358,15 @@ class TrainingApplication(ctk.CTk):
         graph_title.pack(pady=(10, 5))
         self.themed_widgets["labels"].append((graph_title, "text_color", "text_accent"))
 
-        # Область для гістограми
         self.histogram_frame = ctk.CTkFrame(
             graph_frame,
             fg_color="transparent"
         )
         self.histogram_frame.pack(fill="both", expand=True, padx=10, pady=(0, 10))
 
-        # Нижня секція з двома картками
         bottom_frame = ctk.CTkFrame(self.stats_frame, fg_color="transparent")
         bottom_frame.pack(fill="x", padx=20, pady=(0, 10))
 
-        # Ліва нижня картка (загальна кількість калорій)
         left_card = ctk.CTkFrame(
             bottom_frame,
             height=180,
@@ -1395,7 +1377,6 @@ class TrainingApplication(ctk.CTk):
         left_card.pack_propagate(False)
         self.themed_widgets["frames"].append((left_card, "fg_color", "card_bg"))
 
-        # Права нижня картка (підказка)
         right_card = ctk.CTkFrame(
             bottom_frame,
             height=180,
@@ -1406,7 +1387,6 @@ class TrainingApplication(ctk.CTk):
         right_card.pack_propagate(False)
         self.themed_widgets["frames"].append((right_card, "fg_color", "card_bg"))
 
-        # Заголовок для лівої картки
         calories_title = ctk.CTkLabel(
             left_card,
             text="🔥 Всього спалено калорій",
@@ -1416,7 +1396,7 @@ class TrainingApplication(ctk.CTk):
         calories_title.pack(pady=(15, 5))
         self.themed_widgets["labels"].append((calories_title, "text_color", "text_accent"))
 
-        # Значення калорій
+
         self.total_calories_label = ctk.CTkLabel(
             left_card,
             text="0 ккал",
@@ -1426,7 +1406,6 @@ class TrainingApplication(ctk.CTk):
         self.total_calories_label.pack(expand=True, pady=(0, 5))
         self.themed_widgets["labels"].append((self.total_calories_label, "text_color", "text_color"))
 
-        # Середня кількість калорій
         self.avg_calories_label = ctk.CTkLabel(
             left_card,
             text="📊 Середня кількість калорій: 0 ккал",
@@ -1436,7 +1415,6 @@ class TrainingApplication(ctk.CTk):
         self.avg_calories_label.pack(pady=(5, 0))
         self.themed_widgets["labels"].append((self.avg_calories_label, "text_color", "text_color"))
 
-        # Загальна кількість тренувань
         self.workouts_label = ctk.CTkLabel(
             left_card,
             text="🏃 Загальна кількість тренувань за останній тиждень: 0",
@@ -1446,7 +1424,6 @@ class TrainingApplication(ctk.CTk):
         self.workouts_label.pack(pady=(5, 15))
         self.themed_widgets["labels"].append((self.workouts_label, "text_color", "text_color"))
 
-        # Заголовок для правої картки
         tip_title = ctk.CTkLabel(
             right_card,
             text="💡 Підказки",
@@ -1456,7 +1433,6 @@ class TrainingApplication(ctk.CTk):
         tip_title.pack(pady=(15, 5))
         self.themed_widgets["labels"].append((tip_title, "text_color", "text_accent"))
 
-        # Підказка
         self.tip_label = ctk.CTkLabel(
             right_card,
             text="💪 Чудовий прогрес, продовжуйте в тому ж дусі! Додавайте нові вправи, щоб урізноманітнити тренування та досягти кращих результатів. 😊",
@@ -1468,16 +1444,13 @@ class TrainingApplication(ctk.CTk):
         self.tip_label.pack(expand=True, pady=(0, 15), padx=10)
         self.themed_widgets["labels"].append((self.tip_label, "text_color", "text_color"))
 
-        # Оновлення даних
         self.update_statistics_display()
 
     def update_statistics_display(self):
-        """Оновлення відображення статистики з гістограмами та даними."""
-        # Очищення попередніх віджетів у фреймі гістограм
+
         for widget in self.histogram_frame.winfo_children():
             widget.destroy()
 
-        # Завантаження даних з архіву
         archive_data = self.archive_manager.load_archive()
         if not archive_data:
             no_data_label = ctk.CTkLabel(
@@ -1493,32 +1466,29 @@ class TrainingApplication(ctk.CTk):
             self.workouts_label.configure(text="🏃 Загальна кількість тренувань за останній тиждень: 0")
             return
 
-        # Обмеження до 12 останніх сесій
         archive_data = archive_data[-12:]
         max_calories = max(entry.total_calories_burned for entry in archive_data) or 1
         dates = [entry.date.strftime("%d.%m") for entry in archive_data]
 
-        # Контейнер для гістограм
         bars_container = ctk.CTkFrame(self.histogram_frame, fg_color="transparent")
         bars_container.pack(fill="both", expand=True, padx=20, pady=20)
 
-        # Визначення кольорів для стовпців
         colors = [
-            "#10b981", "#34d399", "#6ee7b7", "#a7f3d0",  # Відтінки зеленого
-            "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe",  # Відтінки синього
-            "#6b46c1", "#8e44ad", "#9b59b6", "#d1b3e0"  # Відтінки фіолетового
+            "#10b981", "#34d399", "#6ee7b7", "#a7f3d0",
+            "#3b82f6", "#60a5fa", "#93c5fd", "#bfdbfe",
+            "#6b46c1", "#8e44ad", "#9b59b6", "#d1b3e0"
         ]
 
-        # Створення гістограм
+
         for i, entry in enumerate(archive_data):
             percent = entry.total_calories_burned / max_calories
             bar_height = int(percent * 220)
 
-            # Колонка для одного стовпця
+
             column = ctk.CTkFrame(bars_container, fg_color="transparent")
             column.pack(side="left", fill="y", expand=True)
 
-            # Лейбл з датою
+
             date_label = ctk.CTkLabel(
                 column,
                 text=dates[i],
@@ -1528,7 +1498,7 @@ class TrainingApplication(ctk.CTk):
             date_label.pack(side="bottom", pady=(0, 5))
             self.themed_widgets["labels"].append((date_label, "text_color", "text_color"))
 
-            # Стовпець гістограми
+
             bar = ctk.CTkFrame(
                 column,
                 height=bar_height,
@@ -1539,7 +1509,7 @@ class TrainingApplication(ctk.CTk):
             bar.pack(side="bottom", fill="x", padx=5)
             self.themed_widgets["frames"].append((bar, "fg_color", "text_accent"))
 
-            # Лейбл з калоріями над стовпцем
+
             cal_label = ctk.CTkLabel(
                 column,
                 text=str(entry.total_calories_burned),
@@ -1549,27 +1519,26 @@ class TrainingApplication(ctk.CTk):
             cal_label.pack(side="bottom", pady=(5, 0))
             self.themed_widgets["labels"].append((cal_label, "text_color", "text_color"))
 
-        # Оновлення загальної кількості калорій
+
         total_calories = sum(entry.total_calories_burned for entry in archive_data)
         self.total_calories_label.configure(text=f"{total_calories} ккал")
 
-        # Оновлення середньої кількості калорій
+
         avg_calories = total_calories // len(archive_data) if archive_data else 0
         self.avg_calories_label.configure(text=f"📊 Середня кількість калорій: {avg_calories} ккал")
 
-        # Оновлення загальної кількості тренувань за останній тиждень
+
         from datetime import datetime, timedelta
         one_week_ago = datetime.now() - timedelta(days=7)
         weekly_workouts = len([entry for entry in archive_data
                                if datetime.combine(entry.date, datetime.min.time()) >= one_week_ago])
         self.workouts_label.configure(text=f"🏃 Загальна кількість тренувань за останній тиждень: {weekly_workouts}")
 
-        # Логіка для вибору підказки
         tip = ""
         if len(archive_data) > 1:
             last = archive_data[-1].total_calories_burned
             prev = archive_data[-2].total_calories_burned
-            # Перевірка регулярності: чи є тренування хоча б кожні 2 дні
+
             dates = [entry.date for entry in archive_data]
             is_regular = all((dates[i] - dates[i - 1]).days <= 2 for i in range(1, len(dates)))
             # Перевірка типу тренувань
@@ -1584,13 +1553,13 @@ class TrainingApplication(ctk.CTk):
             else:
                 tip = "🌱 Трохи менше результат, але не хвилюйтесь, головне регулярність! Зосередьтеся на відновленні та поступовому прогресі. 😊"
 
-            # Додаткові підказки залежно від регулярності
+
             if not is_regular:
                 tip = "⏰ Регулярність — запорука успіху! Намагайтеся тренуватися хоча б раз на 2 дні, щоб підтримувати прогрес. 🏋️"
-            # Підказки залежно від загальної кількості калорій
+
             elif total_calories > 2000:
                 tip = "🔥 Ви спалили понад 2000 калорій, вражаючий результат! Продовжуйте в тому ж дусі та не забувайте про відпочинок! 😴"
-            # Підказки залежно від типу тренувань
+
             elif mostly_cardio:
                 tip = "🏃 Ви віддаєте перевагу кардіо — чудово для витривалості! Спробуйте додати силові тренування, щоб зміцнити м’язи. 💪"
             elif mostly_strength:
@@ -1601,7 +1570,7 @@ class TrainingApplication(ctk.CTk):
         self.tip_label.configure(text=tip)
 
     def create_bmi_gauge(self, parent_frame, bmi):
-        # Контейнер для гістограми
+
         gauge_frame = ctk.CTkFrame(
             parent_frame,
             fg_color=self.theme_colors[self.theme_var.get()]["main_bg"]
@@ -1609,7 +1578,6 @@ class TrainingApplication(ctk.CTk):
         gauge_frame.pack(fill="x", padx=20, pady=(9, 0))
         self.themed_widgets["frames"].append((gauge_frame, "fg_color", "main_bg"))
 
-        # Canvas для дуги
         canvas_width = 500
         canvas_height = 250
         gauge_canvas = ctk.CTkCanvas(
@@ -1622,30 +1590,24 @@ class TrainingApplication(ctk.CTk):
         gauge_canvas.pack()
         self.themed_widgets["canvases"].append((gauge_canvas, "bg", "main_bg"))
 
-        # Центр і радіус дуги
         center_x, center_y = canvas_width / 2, canvas_height - 100
         radius = 140
 
-        # Визначення секторів (діапазон 15-30)
         total_angle = 300
 
-        # Кольори для секторів
         colors = {
-            "underweight": "#10b981",  # Зелений
-            "normal": "#3b82f6",  # Синій
-            "overweight": "#6b46c1"  # Фіолетовий
+            "underweight": "#10b981",
+            "normal": "#3b82f6",
+            "overweight": "#6b46c1"
         }
 
-        # Визначення кутів для діапазону ІМТ 15-30
         underweight_angle = total_angle * ((18.5 - 15) / (30 - 15))
         normal_angle = total_angle * ((25 - 18.5) / (30 - 15))
         overweight_angle = total_angle * ((30 - 25) / (30 - 15))
 
-        # Початковий кут (240 градусів)
         start_angle = 240
 
-        # Малювання секторів проти годинникової стрілки
-        # 1. Недостатня вага (зелений, зліва)
+
         gauge_canvas.create_arc(
             center_x - radius, center_y - radius,
             center_x + radius, center_y + radius,
@@ -1653,7 +1615,6 @@ class TrainingApplication(ctk.CTk):
             style="arc", outline=colors["underweight"], width=20
         )
 
-        # 2. Нормальна вага (синій)
         gauge_canvas.create_arc(
             center_x - radius, center_y - radius,
             center_x + radius, center_y + radius,
@@ -1661,7 +1622,6 @@ class TrainingApplication(ctk.CTk):
             style="arc", outline=colors["normal"], width=20
         )
 
-        # 3. Надмірна вага (фіолетовий)
         gauge_canvas.create_arc(
             center_x - radius, center_y - radius,
             center_x + radius, center_y + radius,
@@ -1669,7 +1629,6 @@ class TrainingApplication(ctk.CTk):
             style="arc", outline=colors["overweight"], width=20
         )
 
-        # Відображення значення ІМТ (білий колір)
         bmi_label = gauge_canvas.create_text(
             center_x, center_y - 30,
             text=f"ІМТ: {bmi:.1f}",
@@ -1677,7 +1636,6 @@ class TrainingApplication(ctk.CTk):
             fill="#ffffff"
         )
 
-        # Визначення кольору категорії залежно від ІМТ
         category = self.profile_manager.get_bmi_category(bmi)
         category_color = (
             colors["underweight"] if bmi < 18.5 else
@@ -1685,7 +1643,6 @@ class TrainingApplication(ctk.CTk):
             colors["overweight"]
         )
 
-        # Відображення категорії ІМТ (колір сектора)
         category_label = gauge_canvas.create_text(
             center_x, center_y + 10,
             text=category,
@@ -1693,7 +1650,6 @@ class TrainingApplication(ctk.CTk):
             fill=category_color
         )
 
-        # Трикутник-покажчик зовні
         bmi_normalized = max(15, min(30, bmi))
         pointer_angle = start_angle - total_angle * ((bmi_normalized - 15) / (30 - 15))
         pointer_angle_rad = math.radians(pointer_angle)
@@ -1713,7 +1669,6 @@ class TrainingApplication(ctk.CTk):
             fill="#ffffff"
         )
 
-        # Легенда
         legend_frame = ctk.CTkFrame(gauge_frame, fg_color=self.theme_colors[self.theme_var.get()]["main_bg"])
         legend_frame.pack(pady=(8, 0))
         self.themed_widgets["frames"].append((legend_frame, "fg_color", "main_bg"))
@@ -1744,17 +1699,15 @@ class TrainingApplication(ctk.CTk):
                 text_color="#ffffff"
             )
             text_label.pack(side="left")
-            # Не додаємо text_label до themed_widgets["labels"], щоб зберегти білий колір
 
         return gauge_frame
 
     def setup_profile_page(self):
-        # Очищення попередніх віджетів
+
         for widget in self.profile_frame.winfo_children():
             widget.destroy()
         self.profile_inputs = {}
 
-        # Заголовок "Загальна інформація"
         title_label = ctk.CTkLabel(
             self.profile_frame,
             text="Загальна інформація",
@@ -1764,11 +1717,11 @@ class TrainingApplication(ctk.CTk):
         title_label.pack(pady=(10, 5))
         self.themed_widgets["labels"].append((title_label, "text_color", "text_color"))
 
-        # Створення гістограми ІМТ
+
         bmi = self.profile_manager.calculate_bmi(self.user_profile)
         self.create_bmi_gauge(self.profile_frame, bmi)
 
-        # Контейнер для карток профілю
+
         profile_cards_frame = ctk.CTkFrame(
             self.profile_frame,
             fg_color=self.theme_colors[self.theme_var.get()]["main_bg"]
@@ -1776,7 +1729,7 @@ class TrainingApplication(ctk.CTk):
         profile_cards_frame.pack(fill="both", expand=True, padx=20, pady=5)
         self.themed_widgets["frames"].append((profile_cards_frame, "fg_color", "main_bg"))
 
-        # Дані профілю з емодзі
+
         profile_data = [
             ("🚻", "Стать", self.user_profile._gender),
             ("⚖️", "Вага", f"{self.user_profile._weight} кг"),
@@ -1796,7 +1749,6 @@ class TrainingApplication(ctk.CTk):
             card.grid_columnconfigure((0, 1), weight=1)
             self.themed_widgets["frames"].append((card, "fg_color", "inner_card_bg"))
 
-            # Фрейм для емодзі та ключа
             key_frame = ctk.CTkFrame(
                 card,
                 fg_color=self.theme_colors[self.theme_var.get()]["inner_card_bg"],
@@ -1805,7 +1757,7 @@ class TrainingApplication(ctk.CTk):
             key_frame.grid(row=0, column=0, padx=(10, 5), pady=8, sticky="w")
             self.themed_widgets["frames"].append((key_frame, "fg_color", "inner_card_bg"))
 
-            # Емодзі
+
             emoji_label = ctk.CTkLabel(
                 key_frame,
                 text=emoji,
@@ -1815,7 +1767,6 @@ class TrainingApplication(ctk.CTk):
             emoji_label.pack(side="left", padx=5)
             self.themed_widgets["labels"].append((emoji_label, "text_color", "text_color"))
 
-            # Ключ
             key_label = ctk.CTkLabel(
                 key_frame,
                 text=key,
@@ -1826,7 +1777,6 @@ class TrainingApplication(ctk.CTk):
             key_label.pack(side="left", padx=(5, 0), pady=2)
             self.themed_widgets["labels"].append((key_label, "text_color", "text_color"))
 
-            # Значення
             value_label = ctk.CTkLabel(
                 card,
                 text=str(value),
@@ -1838,7 +1788,6 @@ class TrainingApplication(ctk.CTk):
             value_label.grid(row=0, column=1, padx=(5, 10), pady=8, sticky="e")
             self.themed_widgets["labels"].append((value_label, "text_color", "text_color"))
 
-        # Кнопка "Редагувати"
         button_row = ctk.CTkFrame(
             self.profile_frame,
             fg_color=self.theme_colors[self.theme_var.get()]["main_bg"]
@@ -1862,12 +1811,12 @@ class TrainingApplication(ctk.CTk):
         ])
 
     def update_profile_display(self):
-        # Очищення попередніх віджетів
+
         for widget in self.profile_frame.winfo_children():
             widget.destroy()
         self.profile_inputs = {}
 
-        # Заголовок "Загальна інформація"
+
         title_label = ctk.CTkLabel(
             self.profile_frame,
             text="Загальна інформація",
@@ -1877,11 +1826,11 @@ class TrainingApplication(ctk.CTk):
         title_label.pack(pady=(10, 5))
         self.themed_widgets["labels"].append((title_label, "text_color", "text_color"))
 
-        # Оновлення гістограми ІМТ
+
         bmi = self.profile_manager.calculate_bmi(self.user_profile)
         self.create_bmi_gauge(self.profile_frame, bmi)
 
-        # Контейнер для карток профілю
+
         profile_cards_frame = ctk.CTkFrame(
             self.profile_frame,
             fg_color=self.theme_colors[self.theme_var.get()]["main_bg"]
@@ -1889,7 +1838,7 @@ class TrainingApplication(ctk.CTk):
         profile_cards_frame.pack(fill="both", expand=True, padx=20, pady=5)
         self.themed_widgets["frames"].append((profile_cards_frame, "fg_color", "main_bg"))
 
-        # Оновлення даних профілю
+
         profile_data = [
             ("🚻", "Стать", self.user_profile._gender),
             ("⚖️", "Вага", f"{self.user_profile._weight} кг"),
@@ -1909,7 +1858,7 @@ class TrainingApplication(ctk.CTk):
             card.grid_columnconfigure((0, 1), weight=1)
             self.themed_widgets["frames"].append((card, "fg_color", "inner_card_bg"))
 
-            # Фрейм для емодзі та ключа
+
             key_frame = ctk.CTkFrame(
                 card,
                 fg_color=self.theme_colors[self.theme_var.get()]["inner_card_bg"],
@@ -1918,7 +1867,7 @@ class TrainingApplication(ctk.CTk):
             key_frame.grid(row=0, column=0, padx=(10, 5), pady=6, sticky="w")
             self.themed_widgets["frames"].append((key_frame, "fg_color", "inner_card_bg"))
 
-            # Емодзі
+
             emoji_label = ctk.CTkLabel(
                 key_frame,
                 text=emoji,
@@ -1928,7 +1877,7 @@ class TrainingApplication(ctk.CTk):
             emoji_label.pack(side="left", padx=5)
             self.themed_widgets["labels"].append((emoji_label, "text_color", "text_color"))
 
-            # Ключ
+
             key_label = ctk.CTkLabel(
                 key_frame,
                 text=key,
@@ -1939,7 +1888,7 @@ class TrainingApplication(ctk.CTk):
             key_label.pack(side="left", padx=(5, 0), pady=2)
             self.themed_widgets["labels"].append((key_label, "text_color", "text_color"))
 
-            # Значення
+
             value_label = ctk.CTkLabel(
                 card,
                 text=str(value),
@@ -1951,7 +1900,6 @@ class TrainingApplication(ctk.CTk):
             value_label.grid(row=0, column=1, padx=(5, 10), pady=8, sticky="e")
             self.themed_widgets["labels"].append((value_label, "text_color", "text_color"))
 
-        # Кнопка "Редагувати"
         button_row = ctk.CTkFrame(
             self.profile_frame,
             fg_color=self.theme_colors[self.theme_var.get()]["main_bg"]
@@ -1985,7 +1933,6 @@ class TrainingApplication(ctk.CTk):
         inputs = {}
         selected_muscles = self.user_profile._goal_muscle_groups.copy() if self.user_profile._goal_muscle_groups else []
 
-        # Заголовок
         title_label = ctk.CTkLabel(
             modal, text="Редагувати профіль", font=("Roboto", 20, "bold"),
             text_color=self.theme_colors[self.theme_var.get()]["text_color"]
@@ -1993,7 +1940,6 @@ class TrainingApplication(ctk.CTk):
         title_label.pack(pady=10)
         self.themed_widgets["labels"].append((title_label, "text_color", "text_color"))
 
-        # Стать
         gender_frame = ctk.CTkFrame(modal, fg_color="transparent")
         gender_frame.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(gender_frame, text="🚻 Стать", font=("Roboto", 14), text_color="#ffffff").pack(side="left", padx=5)
@@ -2009,7 +1955,6 @@ class TrainingApplication(ctk.CTk):
             (inputs["gender"], "button_color", "option_menu_button")
         ])
 
-        # Вага
         weight_frame = ctk.CTkFrame(modal, fg_color="transparent")
         weight_frame.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(weight_frame, text="⚖️ Вага (кг)", font=("Roboto", 14), text_color="#ffffff").pack(side="left",
@@ -2018,7 +1963,6 @@ class TrainingApplication(ctk.CTk):
         inputs["weight"].insert(0, str(self.user_profile._weight))
         inputs["weight"].pack(side="right", padx=5, fill="x", expand=True)
 
-        # Зріст
         height_frame = ctk.CTkFrame(modal, fg_color="transparent")
         height_frame.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(height_frame, text="📏 Зріст (см)", font=("Roboto", 14), text_color="#ffffff").pack(side="left",
@@ -2027,7 +1971,6 @@ class TrainingApplication(ctk.CTk):
         inputs["height"].insert(0, str(self.user_profile._height))
         inputs["height"].pack(side="right", padx=5, fill="x", expand=True)
 
-        # Рівень підготовки
         fitness_frame = ctk.CTkFrame(modal, fg_color="transparent")
         fitness_frame.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(fitness_frame, text="🔢 Рівень підготовки", font=("Roboto", 14), text_color="#ffffff").pack(
@@ -2044,7 +1987,6 @@ class TrainingApplication(ctk.CTk):
             (inputs["fitness_level"], "selected_hover_color", "button_hover")
         ])
 
-        # М’язові групи
         muscles_frame = ctk.CTkFrame(modal, fg_color="transparent")
         muscles_frame.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(muscles_frame, text="💪 М’язові групи", font=("Roboto", 14), text_color="#ffffff").pack(anchor="w",
@@ -2064,7 +2006,7 @@ class TrainingApplication(ctk.CTk):
                 self.theme_colors[self.theme_var.get()]["button_fg"],
                 hover_color=self.theme_colors[self.theme_var.get()]["button_hover"]
             )
-            # Прив’язуємо команду після створення кнопки
+
             button.configure(
                 command=lambda g=group, v=var, b=button: self.toggle_muscle_selection(g, v, inputs["muscle_groups"], b))
             button.grid(row=i // 3, column=i % 3, padx=5, pady=5, sticky="ew")
@@ -2075,7 +2017,6 @@ class TrainingApplication(ctk.CTk):
 
         muscles_grid.grid_columnconfigure((0, 1, 2), weight=1)
 
-        # Складність
         difficulty_frame = ctk.CTkFrame(modal, fg_color="transparent")
         difficulty_frame.pack(fill="x", padx=20, pady=5)
         ctk.CTkLabel(difficulty_frame, text="🎮 Складність", font=("Roboto", 14), text_color="#ffffff").pack(side="left",
@@ -2092,7 +2033,6 @@ class TrainingApplication(ctk.CTk):
             (inputs["difficulty"], "button_color", "option_menu_button")
         ])
 
-        # Кнопки Зберегти/Скасувати
         buttons_frame = ctk.CTkFrame(modal, fg_color="transparent")
         buttons_frame.pack(pady=20)
         save_button = ctk.CTkButton(
@@ -2113,7 +2053,6 @@ class TrainingApplication(ctk.CTk):
         self.themed_widgets["buttons"].append(
             (cancel_button, "fg_color", "button_active", "hover_color", "button_hover"))
 
-        # Захоплення фокусу
         modal.grab_set()
         modal.focus_set()
 
@@ -2182,7 +2121,6 @@ class TrainingApplication(ctk.CTk):
             (button, "fg_color", "button_active", "hover_color", "button_hover")
         )
 
-        # Безпечне захоплення фокусу
         modal.grab_set()
         if modal.winfo_exists():
             modal.focus_set()
@@ -2218,7 +2156,6 @@ class TrainingApplication(ctk.CTk):
             (button, "fg_color", "button_active", "hover_color", "button_hover")
         )
 
-        # Безпечне захоплення фокусу
         modal.grab_set()
         if modal.winfo_exists():
             modal.focus_set()

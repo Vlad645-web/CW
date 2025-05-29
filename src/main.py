@@ -14,827 +14,20 @@ import matplotlib.pyplot as plt
 from io import BytesIO
 import base64
 import math
+from exercise_factory import ExerciseFactoryProvider
+from user_profile import UserProfile, ExerciseFeedback
+from training_plan_manager import TrainingPlanManager
+from training_archive_manager import TrainingArchiveManager
+from user_profile_manager import UserProfileManager
+from trainer import Trainer
 
-
-# Налаштування теми customtkinter
 ctk.set_appearance_mode("dark")
 ctk.set_default_color_theme("green")
-
-# Enums для зворотного зв’язку
-class ExerciseFeedback(Enum):
-    EASY = "Easy"
-    NORMAL = "Normal"
-    HARD = "Hard"
-
-
-# Enums для зворотного зв’язку
-class ExerciseFeedback(Enum):
-    EASY = "Easy"
-    NORMAL = "Normal"
-    HARD = "Hard"
-
-
-# Модель даних для профілю користувача
-class UserProfile:
-    def __init__(self):
-        self._fitness_level = 1
-        self._preferred_difficulty = "Medium"
-        self._weight = 70.0
-        self._height = 170.0
-        self._gender = "Male"
-        self._goal_muscle_groups = []
-        self._last_strength_values = {}
-        self._exercise_feedback = {}
-        self._tk_root = None
-
-    @property
-    def fitness_level(self):
-        return self._fitness_level
-
-    @fitness_level.setter
-    def fitness_level(self, value):
-        if 1 <= value <= 10:
-            self._fitness_level = value
-
-    def to_dict(self):
-        return {
-            "FitnessLevel": self._fitness_level,
-            "PreferredDifficulty": self._preferred_difficulty,
-            "Weight": self._weight,
-            "Height": self._height,
-            "Gender": self._gender,
-            "GoalMuscleGroups": self._goal_muscle_groups,
-            "LastStrengthValues": self._last_strength_values,
-            "ExerciseFeedback": {k: v.value for k, v in self._exercise_feedback.items()}
-        }
-
-    @classmethod
-    def from_dict(cls, data):
-        profile = cls()
-        profile._fitness_level = data.get("FitnessLevel", 1)
-        profile._preferred_difficulty = data.get("PreferredDifficulty", "Medium")
-        profile._weight = data.get("Weight", 70.0)
-        profile._height = data.get("Height", 170.0)
-        profile._gender = data.get("Gender", "Male")
-        profile._goal_muscle_groups = data.get("GoalMuscleGroups", [])
-        profile._last_strength_values = data.get("LastStrengthValues", {})
-        profile._exercise_feedback = {
-            k: ExerciseFeedback(v) for k, v in data.get("ExerciseFeedback", {}).items()
-        }
-        return profile
-
-
-class Exercise:
-    def __init__(self, name, exercise_type, properties, equipment="Bodyweight", met=0):
-        self.name = name
-        self.type = exercise_type
-        self.properties = properties
-        self.equipment = equipment
-        self.met = met
-        self.distance = 0
-        self.duration = 0
-        self.intensity = ""
-        self.sets = 0
-        self.repeats = 0
-        self.working_weight = 0
-        self.rest = 0
-        self.recommended_speed = None
-        self.recommended_frequency = None
-        self.max_weight = 0
-        self.max_distance = 0
-
-    def __str__(self):
-        equipment_display = f", Обладнання: {self.equipment}" if self.equipment != "Bodyweight" else ""
-        if self.type == "cardio":
-            if self.properties == "dynamic":
-                return (f"{self.name} (Відстань: {self.distance} км, Тривалість: {self.duration} хв, "
-                        f"Інтенсивність: {self.intensity}{equipment_display}, "
-                        f"Швидкість: {self.recommended_speed} км/год, Частота: {self.recommended_frequency} уд/хв)")
-            return (f"{self.name} (Тривалість: {self.duration} хв, Інтенсивність: {self.intensity}{equipment_display}, "
-                    f"Частота: {self.recommended_frequency} уд/хв)")
-        if self.equipment != "Bodyweight" and self.working_weight != 0:
-            return (f"{self.name} (Підходи: {self.sets}, Повторення: {self.repeats}, Відпочинок: {self.rest} хв, "
-                    f"Вага: {self.working_weight} кг{equipment_display})")
-        return f"{self.name} (Підходи: {self.sets}, Повторення: {self.repeats}, Відпочинок: {self.rest} хв{equipment_display})"
-
-
-class TrainingArchiveEntry:
-    def __init__(self, plan_type, generated_plan, total_calories_burned, date):
-        self.plan_type = plan_type
-        self.generated_plan = generated_plan
-        self.total_calories_burned = total_calories_burned
-        self.date = date
-
-    def to_dict(self):
-        return {
-            "PlanType": self.plan_type,
-            "GeneratedPlan": [self._exercise_to_dict(ex) for ex in self.generated_plan],
-            "TotalCaloriesBurned": self.total_calories_burned,
-            "Date": self.date.strftime("%Y-%m-%d %H:%M:%S")
-        }
-
-    @classmethod
-    def from_dict(cls, data):
-        exercises = [cls._dict_to_exercise(ex) for ex in data["GeneratedPlan"]]
-        return cls(
-            data["PlanType"],
-            exercises,
-            data["TotalCaloriesBurned"],
-            datetime.strptime(data["Date"], "%Y-%m-%d %H:%M:%S")
-        )
-
-    @staticmethod
-    def _exercise_to_dict(exercise):
-        return {
-            "Name": exercise.name,
-            "Type": exercise.type,
-            "Properties": exercise.properties,
-            "Equipment": exercise.equipment,
-            "MET": exercise.met,
-            "Distance": exercise.distance,
-            "Duration": exercise.duration,
-            "Intensity": exercise.intensity,
-            "Sets": exercise.sets,
-            "Repeats": exercise.repeats,
-            "WorkingWeight": exercise.working_weight,
-            "Rest": exercise.rest,
-            "RecommendedSpeed": exercise.recommended_speed,
-            "RecommendedFrequency": exercise.recommended_frequency,
-            "MaxWeight": exercise.max_weight,
-            "MaxDistance": exercise.max_distance
-        }
-
-    @staticmethod
-    def _dict_to_exercise(data):
-        ex = Exercise(
-            data["Name"],
-            data["Type"],
-            data["Properties"],
-            data["Equipment"],
-            data["MET"]
-        )
-        ex.distance = data["Distance"]
-        ex.duration = data["Duration"]
-        ex.intensity = data["Intensity"]
-        ex.sets = data["Sets"]
-        ex.repeats = data["Repeats"]
-        ex.working_weight = data["WorkingWeight"]
-        ex.rest = data["Rest"]
-        ex.recommended_speed = data["RecommendedSpeed"]
-        ex.recommended_frequency = data["RecommendedFrequency"]
-        ex.max_weight = data["MaxWeight"]
-        ex.max_distance = data["MaxDistance"]
-        return ex
-
-
-class TrainingPlan(ABC):
-    def __init__(self, user_profile):
-        self.user_profile = user_profile
-        self.generated_plan = []
-        self.total_calories_burned = 0
-
-    def get_generated_plan(self):
-        return self.generated_plan
-
-    @abstractmethod
-    def generate_plan(self, difficulty, exercises):
-        pass
-
-    @abstractmethod
-    def calculate_total_calories(self, selected_exercises, difficulty):
-        pass
-
-    @abstractmethod
-    def set_exercise_parameters(self, exercises, difficulty):
-        pass
-
-    @abstractmethod
-    def calculate_calories_per_exercise(self, exercise):
-        pass
-
-
-class StrengthPlan(TrainingPlan):
-    def __init__(self, muscle_groups, user_profile):
-        super().__init__(user_profile)
-        self.muscle_groups = muscle_groups
-
-    def generate_plan(self, difficulty, exercises):
-        selected_exercises = self.select_exercises(difficulty, exercises)
-        self.set_exercise_parameters(selected_exercises, difficulty)
-        self.generated_plan = selected_exercises
-        self.calculate_total_calories(selected_exercises, difficulty)
-
-    @abstractmethod
-    def select_exercises(self, difficulty, exercises):
-        pass
-
-    def set_exercise_parameters(self, exercises, difficulty):
-        rand = random.Random()
-        for exercise in exercises:
-            exercise.sets = self._get_sets(difficulty, rand)
-            exercise.repeats = self._get_repeats(difficulty, rand)
-            exercise.rest = self._get_rest_time(difficulty)
-            if exercise.equipment != "Bodyweight":
-                if exercise.name not in self.user_profile._last_strength_values:
-                    exercise.working_weight = self._get_initial_weight(difficulty, exercise.max_weight)
-                else:
-                    exercise.working_weight = self._adjust_weight_based_on_feedback(exercise)
-                self.user_profile._last_strength_values[exercise.name] = exercise.working_weight
-
-    def _adjust_weight_based_on_feedback(self, exercise):
-        if exercise.name in self.user_profile._last_strength_values:
-            current_weight = self.user_profile._last_strength_values[exercise.name]
-            if exercise.name in self.user_profile._exercise_feedback:
-                feedback = self.user_profile._exercise_feedback[exercise.name]
-                return {
-                    ExerciseFeedback.EASY: int(current_weight * 1.3),
-                    ExerciseFeedback.NORMAL: int(current_weight),
-                    ExerciseFeedback.HARD: int(current_weight * 0.8)
-                }.get(feedback, 0)
-        return 0
-
-    def _get_sets(self, difficulty, rand):
-        return {
-            "Easy": rand.randint(1, 2),
-            "Medium": rand.randint(1, 2),
-            "Hard": rand.randint(1, 2)
-        }.get(difficulty, 4)
-
-    def _get_repeats(self, difficulty, rand):
-        return {
-            "Easy": rand.randint(10, 13),
-            "Medium": rand.randint(8, 11),
-            "Hard": rand.randint(6, 9)
-        }.get(difficulty, 10)
-
-    def _get_rest_time(self, difficulty):
-        return {
-            "Easy": 1,
-            "Medium": 1,
-            "Hard": 1
-        }.get(difficulty, 2)
-
-    def _get_initial_weight(self, difficulty, max_weight):
-        weight = {
-            "Easy": max_weight * 0.4,
-            "Medium": max_weight * 0.6,
-            "Hard": max_weight * 0.9
-        }.get(difficulty, max_weight * 0.5)
-        return int(weight)
-
-    def calculate_calories_per_exercise(self, exercise):
-        weight_in_kg = self.user_profile._weight
-        total_reps = exercise.sets * exercise.repeats
-        calories = exercise.met * weight_in_kg * total_reps / 1000.0
-        return int(round(calories))
-
-    def calculate_total_calories(self, selected_exercises, difficulty):
-        total_calories = 0
-        for exercise in selected_exercises:
-            total_calories += self.calculate_calories_per_exercise(exercise) * exercise.sets
-        self.total_calories_burned = total_calories
-        return total_calories
-
-    @abstractmethod
-    def get_exercises_per_group(self, difficulty):
-        pass
-
-
-class CardioPlan(TrainingPlan):
-    def generate_plan(self, difficulty, exercises):
-        number_of_exercises = self._get_number_of_exercises(difficulty)
-        selected_exercises = random.sample(exercises, min(number_of_exercises, len(exercises)))
-        if not selected_exercises:
-            self._show_error("Немає доступних кардіо вправ.")
-            return
-        self.set_exercise_parameters(selected_exercises, difficulty)
-        self.generated_plan = selected_exercises
-        self.calculate_total_calories(selected_exercises, difficulty)
-
-    def _get_number_of_exercises(self, difficulty):
-        return {
-            "Easy": 2,
-            "Medium": 3,
-            "Hard": 4
-        }.get(difficulty, 3)
-
-    def set_exercise_parameters(self, exercises, difficulty):
-        for exercise in exercises:
-            exercise.intensity = self._get_intensity(difficulty)
-            if exercise.properties == "dynamic":
-                exercise.distance = self._get_distance(difficulty, exercise.max_distance)
-                exercise.duration = self._calculate_dynamic_duration(exercise.distance, exercise.recommended_speed,
-                                                                     difficulty)
-                exercise.recommended_speed = self._adjust_speed_based_on_difficulty(exercise.recommended_speed,
-                                                                                    difficulty)
-                exercise.recommended_frequency = self._adjust_frequency_based_on_difficulty(
-                    exercise.recommended_frequency, difficulty)
-            elif exercise.properties == "static":
-                exercise.duration = self._get_static_duration(difficulty)
-                exercise.recommended_frequency = self._adjust_frequency_based_on_difficulty(
-                    exercise.recommended_frequency, difficulty)
-
-    def _get_intensity(self, difficulty):
-        return {
-            "Easy": "Низька",
-            "Medium": "Середня",
-            "Hard": "Висока"
-        }.get(difficulty, "Середня")
-
-    def _get_distance(self, difficulty, max_distance):
-        if not max_distance:
-            return 0
-        return {
-            "Easy": max_distance * 0.5,
-            "Medium": max_distance * 0.75,
-            "Hard": max_distance
-        }.get(difficulty, max_distance)
-
-    def _calculate_dynamic_duration(self, distance, speed, difficulty):
-        if not speed or speed <= 0:
-            return 0
-        adjusted_speed = speed * 1.2 if difficulty == "Hard" else speed
-        return int(round(distance / adjusted_speed * 60))
-
-    def _adjust_speed_based_on_difficulty(self, recommended_speed, difficulty):
-        if recommended_speed is None:
-            return None
-        adjusted_speed = recommended_speed * 1.2 if difficulty == "Hard" else recommended_speed
-        return round(adjusted_speed)
-
-    def _adjust_frequency_based_on_difficulty(self, recommended_frequency, difficulty):
-        if recommended_frequency is None:
-            return None
-        return int(recommended_frequency * 1.2) if difficulty == "Hard" else recommended_frequency
-
-    def _get_static_duration(self, difficulty):
-        return {
-            "Easy": 10,
-            "Medium": 15,
-            "Hard": 20
-        }.get(difficulty, 15)
-
-    def calculate_calories_per_exercise(self, exercise):
-        weight_in_kg = self.user_profile._weight
-        hours = exercise.duration / 60.0
-        if hours <= 0:
-            return 0
-        calories = exercise.met * weight_in_kg * hours
-        return int(round(calories))
-
-    def calculate_total_calories(self, selected_exercises, difficulty):
-        total_calories = 0
-        for exercise in selected_exercises:
-            total_calories += self.calculate_calories_per_exercise(exercise)
-        self.total_calories_burned = total_calories
-        return total_calories
-
-    def _show_error(self, message):
-        ctk.CTkToplevel(self.user_profile._tk_root).title("Помилка")
-        ctk.CTkLabel(master=self.user_profile._tk_root, text=message).pack(pady=10)
-        ctk.CTkButton(master=self.user_profile._tk_root, text="OK", command=self.user_profile._tk_root.destroy).pack(
-            pady=10)
-
-
-class FullBodyPlan(StrengthPlan):
-    def select_exercises(self, difficulty, exercises):
-        selected_exercises = []
-        muscle_groups = list(set(ex.properties for ex in exercises))
-        rand = random.Random()
-        for group in muscle_groups:
-            group_exercises = [ex for ex in exercises if ex.properties == group]
-            selected = rand.sample(group_exercises, min(self.get_exercises_per_group(difficulty), len(group_exercises)))
-            selected_exercises.extend(selected)
-        return selected_exercises
-
-    def get_exercises_per_group(self, difficulty):
-        return 2 if difficulty == "Easy" else 3
-
-
-class SplitPlan(StrengthPlan):
-    def select_exercises(self, difficulty, exercises):
-        selected_exercises = []
-        rand = random.Random()
-        for group in self.muscle_groups:
-            group_exercises = [ex for ex in exercises if ex.properties.lower() == group.lower()]
-            selected = rand.sample(group_exercises, min(self.get_exercises_per_group(difficulty), len(group_exercises)))
-            selected_exercises.extend(selected)
-        return selected_exercises
-
-    def get_exercises_per_group(self, difficulty):
-        return 3 if difficulty == "Easy" else 4
-
-
-class IExerciseFactory(ABC):
-    @abstractmethod
-    def create_exercises(self, user_profile, training_location):
-        pass
-
-
-class GymStrengthExercisesForMenFactory(IExerciseFactory):
-    def create_exercises(self, user_profile, training_location):
-        exercises = [
-            Exercise("Жим лежачи", "strength", "chest", "Barbell", 4.0),
-            Exercise("Жим під нахилом", "strength", "chest", "Barbell", 4.0),
-            Exercise("Присідання", "strength", "legs", "Barbell", 5.0),
-            Exercise("Тяга штанги", "strength", "back", "Barbell", 5.0),
-        ]
-        for ex in exercises:
-            max_weights = {
-                "Жим лежачи": 80,
-                "Жим під нахилом": 70,
-                "Присідання": 100,
-                "Тяга штанги": 120,
-            }
-            ex.max_weight = max_weights.get(ex.name, 0)
-        return exercises
-
-
-class GymStrengthExercisesForWomenFactory(IExerciseFactory):
-    def create_exercises(self, user_profile, training_location):
-        exercises = [
-            Exercise("Жим гантелями", "strength", "chest", "Dumbbells", 3.5),
-            Exercise("Глютеальний міст", "strength", "legs", met=3.5),
-        ]
-        for ex in exercises:
-            max_weights = {"Жим гантелями": 30, "Глютеальний міст": 60}
-            ex.max_weight = max_weights.get(ex.name, 0)
-        return exercises
-
-
-class HomeStrengthExercisesFactory(IExerciseFactory):
-    def create_exercises(self, user_profile, training_location):
-        return [
-            Exercise("Віджимання", "strength", "chest", met=3.0),
-            Exercise("Присідання", "strength", "legs", met=4.0),
-        ]
-
-
-class GymCardioExercisesFactory(IExerciseFactory):
-    def create_exercises(self, user_profile, training_location):
-        exercises = [
-            Exercise("Біг на доріжці", "cardio", "dynamic", "Treadmill", 9.8),
-            Exercise("Стрибки зі скакалкою", "cardio", "static", "Jump Rope", 10.0),
-        ]
-        for ex in exercises:
-            settings = {
-                "Біг на доріжці": {"speed": 8.0, "freq": 140, "dist": 10.0},
-                "Стрибки зі скакалкою": {"freq": 150},
-            }
-            setting = settings.get(ex.name, {})
-            ex.recommended_speed = setting.get("speed")
-            ex.recommended_frequency = setting.get("freq")
-            ex.max_distance = setting.get("dist", 0)
-        return exercises
-
-
-class ParkCardioExercisesFactory(IExerciseFactory):
-    def create_exercises(self, user_profile, training_location):
-        exercises = [
-            Exercise("Біг по стежці", "cardio", "dynamic", met=8.0),
-            Exercise("Стрибки зірочкою", "cardio", "static", met=6.0),
-        ]
-        for ex in exercises:
-            settings = {
-                "Біг по стежці": {"speed": 8.0, "freq": 130, "dist": 10.0},
-                "Стрибки зірочкою": {"freq": 120},
-            }
-            setting = settings.get(ex.name, {})
-            ex.recommended_speed = setting.get("speed")
-            ex.recommended_frequency = setting.get("freq")
-            ex.max_distance = setting.get("dist", 0)
-        return exercises
-
-
-class HomeCardioExercisesFactory(IExerciseFactory):
-    def create_exercises(self, user_profile, training_location):
-        exercises = [
-            Exercise("Стрибки зірочкою", "cardio", "static", met=8.0),
-            Exercise("Бурпі", "cardio", "static", met=8.0),
-        ]
-        for ex in exercises:
-            settings = {
-                "Стрибки зірочкою": {"freq": 120},
-                "Бурпі": {"freq": 115},
-            }
-            ex.recommended_frequency = settings.get(ex.name, {}).get("freq")
-        return exercises
-
-
-class ExerciseFactoryProvider:
-    @staticmethod
-    def get_factory(user_profile, plan_type, training_location):
-        if user_profile._gender == "Male" and plan_type == "Strength" and training_location == "Gym":
-            return GymStrengthExercisesForMenFactory()
-        elif user_profile._gender == "Female" and plan_type == "Strength" and training_location == "Gym":
-            return GymStrengthExercisesForWomenFactory()
-        elif plan_type == "Strength" and training_location == "Home":
-            return HomeStrengthExercisesFactory()
-        elif plan_type == "Cardio" and training_location == "Gym":
-            return GymCardioExercisesFactory()
-        elif plan_type == "Cardio" and training_location == "Park":
-            return ParkCardioExercisesFactory()
-        elif plan_type == "Cardio" and training_location == "Home":
-            return HomeCardioExercisesFactory()
-        raise ValueError("Непідтримуваний тип тренування або локація.")
-
-
-class UserProfileManager:
-    def __init__(self):
-        self._user_profile_file_path = "user_profile.json"
-
-    def calculate_bmi(self, profile):
-        height_in_meters = profile._height / 100
-        return round(profile._weight / (height_in_meters * height_in_meters), 2)
-
-    def get_bmi_category(self, bmi):
-        if bmi < 18.5:
-            return "Недостатня вага"
-        elif bmi < 24.9:
-            return "Нормальна вага"
-        elif bmi < 29.9:
-            return "Надмірна вага"
-        return "Ожиріння"
-
-    def save_user_profile(self, profile):
-        with open(self._user_profile_file_path, 'w') as f:
-            json.dump(profile.to_dict(), f, indent=2)
-
-    def load_user_profile(self):
-        if not os.path.exists(self._user_profile_file_path):
-            return UserProfile()
-        try:
-            with open(self._user_profile_file_path, 'r') as f:
-                data = json.load(f)
-                return UserProfile.from_dict(data)
-        except json.JSONDecodeError:
-            return UserProfile()
-
-    def is_user_profile_file_empty(self):
-        if not os.path.exists(self._user_profile_file_path):
-            return True
-        return os.path.getsize(self._user_profile_file_path) == 0
-
-    def fill_user_profile(self, profile, inputs):
-        try:
-            profile._gender = inputs['gender']
-            profile._weight = float(inputs['weight'])
-            profile._height = float(inputs['height'])
-            profile._fitness_level = int(inputs['fitness_level'])
-            profile._goal_muscle_groups = inputs['muscle_groups']
-            profile._preferred_difficulty = inputs['difficulty']
-            if profile._weight <= 0 or profile._height <= 0:
-                raise ValueError("Вага та зріст повинні бути більше 0.")
-            if profile._fitness_level < 1 or profile._fitness_level > 5:
-                raise ValueError("Рівень підготовки повинен бути від 1 до 5.")
-            if not profile._goal_muscle_groups:
-                raise ValueError("Виберіть хоча б одну м’язову групу.")
-            self.save_user_profile(profile)
-            return True
-        except ValueError as e:
-            self._show_error(profile._tk_root, str(e))
-            return False
-
-    def display_user_profile(self, profile):
-        bmi = self.calculate_bmi(profile)
-        bmi_category = self.get_bmi_category(bmi)
-        return {
-            "Рівень підготовки": profile._fitness_level,
-            "М’язові групи": ", ".join(profile._goal_muscle_groups),
-            "Складність": profile._preferred_difficulty,
-            "Вага": f"{profile._weight} кг",
-            "Зріст": f"{profile._height} см",
-            "ІМТ": f"{bmi} ({bmi_category})"
-        }
-
-    def update_exercise_feedback(self, profile, exercise_name, feedback):
-        profile._exercise_feedback[exercise_name] = feedback
-        self.save_user_profile(profile)
-
-    def delete_user_profile(self):
-        if os.path.exists(self._user_profile_file_path):
-            os.remove(self._user_profile_file_path)
-
-    def _show_error(self, root, message):
-        modal = ctk.CTkToplevel(root)
-        modal.title("Помилка")
-        modal.geometry("400x200")
-        ctk.CTkLabel(modal, text=message, font=("Roboto", 14), wraplength=350).pack(pady=20)
-        ctk.CTkButton(modal, text="OK", font=("Roboto", 14), command=modal.destroy, fg_color="#10b981",
-                      hover_color="#12d1a1").pack(pady=10)
-
-
-class TrainingArchiveManager:
-    def __init__(self):
-        self._archive_file_path = "training_archive.json"
-
-    def save_plan_to_archive(self, plan, plan_type):
-        archive_entry = TrainingArchiveEntry(
-            plan_type,
-            plan.get_generated_plan(),
-            plan.total_calories_burned,
-            datetime.now()
-        )
-        archive = self.load_archive()
-        archive.append(archive_entry)
-        with open(self._archive_file_path, 'w') as f:
-            json.dump([entry.to_dict() for entry in archive], f, indent=2)
-
-    def load_archive(self):
-        if not os.path.exists(self._archive_file_path):
-            return []
-        try:
-            with open(self._archive_file_path, 'r') as f:
-                data = json.load(f)
-                return [TrainingArchiveEntry.from_dict(entry) for entry in data]
-        except json.JSONDecodeError:
-            return []
-
-    def clear_archive(self):
-        if os.path.exists(self._archive_file_path):
-            with open(self._archive_file_path, 'w') as f:
-                f.write("")
-            return "Архів успішно очищено."
-        return "Файл архіву не існує."
-
-    def get_archived_plans_summary(self):
-        archive = self.load_archive()
-        if not archive:
-            return []
-        return [
-            {
-                "id": i + 1,
-                "type": entry.plan_type,
-                "calories": entry.total_calories_burned,
-                "date": entry.date.strftime("%Y-%m-%d %H:%M:%S")
-            }
-            for i, entry in enumerate(archive)
-        ]
-
-    def get_plan_details(self, index):
-        archive = self.load_archive()
-        if index < 0 or index >= len(archive):
-            return {"error": "Невірний індекс. Оберіть коректний план."}
-        entry = archive[index]
-        details = {
-            "type": entry.plan_type,
-            "calories": entry.total_calories_burned,
-            "exercises": []
-        }
-        for exercise in entry.generated_plan:
-            equipment_display = f", Обладнання: {exercise.equipment}" if exercise.equipment != "Bodyweight" else ""
-            if exercise.type == "cardio":
-                details["exercises"].append(
-                    f"{exercise.name} (Відстань: {exercise.distance} км, Тривалість: {exercise.duration} хв, "
-                    f"Інтенсивність: {exercise.intensity}{equipment_display}, "
-                    f"Швидкість: {exercise.recommended_speed} км/год, Частота: {exercise.recommended_frequency} уд/хв)"
-                )
-            else:
-                if exercise.equipment != "Bodyweight" and exercise.working_weight != 0:
-                    details["exercises"].append(
-                        f"{exercise.name} (Підходи: {exercise.sets}, Повторення: {exercise.repeats}, "
-                        f"Відпочинок: {exercise.rest} хв, Вага: {exercise.working_weight} кг{equipment_display})"
-                    )
-                else:
-                    details["exercises"].append(
-                        f"{exercise.name} (Підходи: {exercise.sets}, Повторення: {exercise.repeats}, "
-                        f"Відпочинок: {exercise.rest} хв{equipment_display})"
-                    )
-        return details
-
-
-class TrainingPlanManager:
-    def create_cardio_plan(self, difficulty, exercises, profile):
-        cardio_plan = CardioPlan(profile)
-        cardio_plan.generate_plan(difficulty, exercises)
-        return cardio_plan, self._format_plan(cardio_plan, "Cardio")
-
-    def create_strength_plan(self, is_full_body, properties, difficulty, exercises, profile):
-        strength_plan = FullBodyPlan(properties, profile) if is_full_body else SplitPlan(properties, profile)
-        strength_plan.generate_plan(difficulty, exercises)
-        return strength_plan, self._format_plan(strength_plan, "Strength")
-
-    def _format_plan(self, plan, plan_type):
-        plan_data = {
-            "type": plan_type,
-            "calories": plan.total_calories_burned,
-            "exercises": []
-        }
-        properties_displayed = set()
-        for exercise in plan.get_generated_plan():
-            equipment_display = f", Обладнання: {exercise.equipment}" if exercise.equipment != "Bodyweight" else ""
-            if plan_type == "Cardio":
-                if exercise.properties == "dynamic":
-                    plan_data["exercises"].append({
-                        "name": exercise.name,
-                        "details": f"Відстань: {exercise.distance} км, Інтенсивність: {exercise.intensity}{equipment_display}, "
-                                   f"Швидкість: {exercise.recommended_speed} км/год, Частота: {exercise.recommended_frequency} уд/хв"
-                    })
-                else:
-                    plan_data["exercises"].append({
-                        "name": exercise.name,
-                        "details": f"Тривалість: {exercise.duration} хв, Інтенсивність: {exercise.intensity}{equipment_display}, "
-                                   f"Частота: {exercise.recommended_frequency} уд/хв"
-                    })
-            else:
-                if exercise.properties not in properties_displayed:
-                    plan_data["exercises"].append({"name": f"Ціль: {exercise.properties}", "details": ""})
-                    properties_displayed.add(exercise.properties)
-                if exercise.equipment != "Bodyweight" and exercise.working_weight != 0:
-                    plan_data["exercises"].append({
-                        "name": exercise.name,
-                        "details": f"Підходи: {exercise.sets}, Повторення: {exercise.repeats}, "
-                                   f"Відпочинок: {exercise.rest} хв, Вага: {exercise.working_weight} кг{equipment_display}"
-                    })
-                else:
-                    plan_data["exercises"].append({
-                        "name": exercise.name,
-                        "details": f"Підходи: {exercise.sets}, Повторення: {exercise.repeats}, "
-                                   f"Відпочинок: {exercise.rest} хв{equipment_display}"
-                    })
-        return plan_data
-
-
-class Trainer:
-    def __init__(self, plan, user_profile, update_callback):
-        self.plan = plan
-        self.user_profile = user_profile
-        self.update_callback = update_callback
-        self.running = False
-        self.current_exercise_name = None
-        self.current_set = 1
-
-    def start_training(self):
-        self.running = True
-        threading.Thread(target=self._run_training, daemon=True).start()
-
-    def _run_training(self):
-        # Стартовий таймер
-        self.update_callback("До початку тренування", show_timer=True, timer_duration=5)
-        self._wait_until_confirmed()
-        if not self.running:
-            return
-
-        exercises = self.plan.get_generated_plan()
-        if not exercises:
-            self.update_callback("В плані немає вправ.")
-            return
-
-        for idx, exercise in enumerate(exercises):
-            self.current_exercise_name = exercise.name
-            for set_num in range(1, exercise.sets + 1):
-                self.current_set = set_num
-                if not self.running:
-                    return
-
-                self.update_callback(
-                    message=f"{exercise.name}",
-                    set_info={"current": set_num, "total": exercise.sets},
-                    prompt=True,
-                    exercise_name=exercise.name
-                )
-                self._wait_until_confirmed()
-                if not self.running:
-                    return
-
-                if set_num < exercise.sets:
-                    rest_seconds = int(exercise.rest * 60)
-                    self.update_callback(
-                        message="Відпочинок",
-                        show_timer=True,
-                        timer_duration=rest_seconds
-                    )
-                    self._wait_until_confirmed()
-                    if not self.running:
-                        return
-
-            # Перерва між вправами (якщо не остання вправа)
-            if idx < len(exercises) - 1:
-                rest_seconds = 30
-                self.update_callback(
-                    message="Перерва між вправами",
-                    show_timer=True,
-                    timer_duration=rest_seconds
-                )
-                self._wait_until_confirmed()
-                if not self.running:
-                    return
-
-        self.update_callback("Тренування завершено! Залиште відгук", feedback=True)
-
-    def _wait_until_confirmed(self):
-        self.user_profile._tk_root.confirm_response.set(False)
-        while not self.user_profile._tk_root.confirm_response.get() and self.running:
-            time.sleep(0.1)
-
-    def stop_training(self):
-        self.running = False
-
 
 class TrainingApplication(ctk.CTk):
     def __init__(self):
         super().__init__()
-        self.title("Фітнес Додаток")
+        self.title("Не штрафуйте пж")
         self.geometry("1000x700")
         self.configure(fg_color="#1e1e1e")
         self.profile_manager = UserProfileManager()
@@ -895,7 +88,7 @@ class TrainingApplication(ctk.CTk):
         self.themed_widgets["frames"].extend([(self.home_frame, "fg_color", "main_bg"), (self.training_frame, "fg_color", "main_bg"),
                                               (self.archive_frame, "fg_color", "main_bg"), (self.stats_frame, "fg_color", "main_bg"),
                                               (self.profile_frame, "fg_color", "main_bg")])
-        nav_buttons = [("🏠 Головна", self.show_home_page, self.home_frame), (" 💪 Тренування", self.show_training_page, self.training_frame),
+        nav_buttons = [("🏠 Про нас", self.show_home_page, self.home_frame), (" 💪 Тренування", self.show_training_page, self.training_frame),
                        ("📚 Архів", self.show_archive_page, self.archive_frame), ("📊 Статистика", self.show_statistics_page, self.stats_frame),
                        ("👤 Характеристики", self.show_profile_page, self.profile_frame), ("🚪 Вихід", self.quit_application, None)]
         for text, command, frame in nav_buttons:
@@ -953,80 +146,181 @@ class TrainingApplication(ctk.CTk):
         self.update_profile_display()
 
     def setup_home_page(self):
-        # Заголовок угорі
+        def interpolate_color(start_rgb, end_rgb, factor):
+            return tuple(int(start + (end - start) * factor) for start, end in zip(start_rgb, end_rgb))
+
+        for widget in self.home_frame.winfo_children():
+            widget.destroy()
+
+        motivational_titles = [
+            "Досягай нових вершин з кожним тренуванням!",
+            "Твоя сила – у регулярності!",
+            "Стань кращою версією себе!",
+            "Крок за кроком до твоєї мети!",
+            "Тренуйся сьогодні, щоб сяяти завтра!"
+        ]
+
+        selected_title = random.choice(motivational_titles)
+
         welcome_label = ctk.CTkLabel(
             self.home_frame,
-            text="Ласкаво просимо до Фітнес Додатку!",
+            text=selected_title,
             font=("Roboto", 24, "bold"),
             text_color=self.theme_colors["dark"]["text_color"]
         )
-        welcome_label.pack(pady=(10, 20))
+        welcome_label.pack(pady=(10, 2))
         self.themed_widgets["labels"].append((welcome_label, "text_color", "text_color"))
 
-        # Зображення під заголовком
-        image_path = r"C:\Users\Asus\PycharmProjects\PythonProject\Images\Image1.png"
+        image_path = r"C:\Users\Asus\PycharmProjects\CW\assets\Images\Image2.png"
         try:
             img = Image.open(image_path).convert("RGBA")
-            img = img.resize((600, 400), Image.LANCZOS)  # Збільшене зображення
-            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(500, 350))
+            original_width, original_height = img.size
+            new_width = 550
+            new_height = int(original_height * (new_width / original_width))
+            img = img.resize((new_width, new_height), Image.LANCZOS)
+            ctk_img = ctk.CTkImage(light_image=img, dark_image=img, size=(new_width, new_height))
             image_frame = ctk.CTkFrame(self.home_frame, fg_color="transparent")
-            image_frame.pack(pady=10)
+            image_frame.pack(pady=(0, 2))
             image_label = ctk.CTkLabel(image_frame, image=ctk_img, text="", fg_color="transparent")
             image_label.pack()
-        except Exception as e:
+        except Exception:
             error_label = ctk.CTkLabel(
                 self.home_frame,
-                text="Не вдалося завантажити зображення",
+                text="Не вдалося завантажити зображення.",
                 font=("Roboto", 14),
                 text_color=self.theme_colors["dark"]["text_color"]
             )
-            error_label.pack(pady=10)
+            error_label.pack(pady=(0, 2))
             self.themed_widgets["labels"].append((error_label, "text_color", "text_color"))
 
-        # Секція порад
-        tips_frame = ctk.CTkFrame(self.home_frame, fg_color=self.theme_colors["dark"]["card_bg"])
-        tips_frame.pack(pady=20, fill="x")
-        self.themed_widgets["frames"].append((tips_frame, "fg_color", "card_bg"))
-        tips_label = ctk.CTkLabel(
-            tips_frame,
-            text="Цікавий факт: Регулярні тренування можуть збільшити тривалість життя на 3-7 років!\nПорада: Пийте воду перед, під час та після тренувань для оптимального відновлення.",
-            font=("Roboto", 14),
-            wraplength=600,
-            justify="center",
-            text_color=self.theme_colors["dark"]["text_color"]
+        cards_container = ctk.CTkFrame(self.home_frame, fg_color="transparent")
+        cards_container.pack(pady=5, fill="x", padx=20)
+        cards_container.grid_columnconfigure(0, weight=1)
+        cards_container.grid_columnconfigure(1, weight=1)
+
+        # ------- Картка: Чому варто обрати нас -------
+        why_us_lines = random.choice([
+            [
+                "🔥 Індивідуальні плани тренувань під твої цілі та потреби.",
+                "📊 Аналітика прогресу в зручному та інтуїтивному інтерфейсі.",
+                "🤝 Спільнота для підтримки, мотивації та обміну досвідом.",
+                "💬 Відгуки від користувачів, які вже досягнули результатів.",
+            ],
+            [
+                "🔥 Персоналізовані програми для всіх рівнів підготовки.",
+                "📈 Стеження за результатами в реальному часі з графіками.",
+                "🌟 Спільнота, яка надихає та допомагає не зупинятися.",
+                "💡 Поради від реальних людей, що змінили своє життя.",
+            ],
+            [
+                "🔥 Тренування, розроблені спеціально під твої завдання.",
+                "📉 Контроль прогресу з чіткими та зрозумілими звітами.",
+                "👥 Об’єднання з іншими для спільної мотивації та цілей.",
+                "🌟 Досвід тих, хто досяг успіху завдяки додатку.",
+            ],
+        ])
+
+        why_us_card = ctk.CTkFrame(
+            cards_container,
+            fg_color=self.theme_colors["dark"]["card_bg"],
+            corner_radius=15,
+            border_width=0
         )
-        tips_label.pack()
-        self.themed_widgets["labels"].append((tips_label, "text_color", "text_color"))
+        why_us_card.grid(row=0, column=0, sticky="nsew", padx=(0, 5), pady=5)
+        self.themed_widgets["frames"].append((why_us_card, "fg_color", "card_bg"))
 
-        # Контейнер для карток-кнопок
-        cards_frame = ctk.CTkFrame(self.home_frame, fg_color=self.theme_colors["dark"]["card_bg"])
-        cards_frame.pack(pady=20, fill="x")
-        self.themed_widgets["frames"].append((cards_frame, "fg_color", "card_bg"))
+        why_us_title = ctk.CTkLabel(
+            why_us_card,
+            text="🔥 Чому варто обрати нас",
+            font=("Roboto", 17, "bold"),
+            text_color=self.theme_colors["dark"]["text_accent"],
+            anchor="w", justify="left"
+        )
+        why_us_title.pack(anchor="w", padx=15, pady=(15, 5))
+        self.themed_widgets["labels"].append((why_us_title, "text_color", "text_accent"))
 
-        # Дані для карток (лише емодзі)
-        card_data = [
-            ("📋", self.show_training_page),
-            ("📚", self.show_archive_page),
-            ("📊", self.show_statistics_page)
-        ]
+        # Визначаємо неонові кольори для градієнта
+        start_color = (0, 255, 170)  # Бірюзово-зелений, як text_accent
+        end_color = (0, 180, 90)  # Більш темний, але з тієї ж гами
 
-        for i, (emoji, command) in enumerate(card_data):
-            card_button = ctk.CTkButton(
-                cards_frame,
-                text=emoji,
-                font=("Roboto", 40),  # Великий розмір емодзі
-                fg_color=self.theme_colors["dark"]["inner_card_bg"],
-                hover_color=self.theme_colors["dark"]["button_hover"],
-                command=command,
-                corner_radius=12,
-                width=100,  # Менший розмір картки
-                height=100
+        for i, line in enumerate(why_us_lines):
+            factor = i / (len(why_us_lines) - 1) if len(why_us_lines) > 1 else 0  # Фактор для градієнта
+            gradient_color_rgb = interpolate_color(start_color, end_color, factor)
+            # Конвертуємо RGB у hex
+            gradient_color_hex = f"#{gradient_color_rgb[0]:02x}{gradient_color_rgb[1]:02x}{gradient_color_rgb[2]:02x}"
+            label = ctk.CTkLabel(
+                why_us_card,
+                text=line,
+                font=("Roboto", 13, "bold"),
+                text_color=gradient_color_hex,
+                anchor="w", justify="left",
+                wraplength=480
             )
-            card_button.grid(row=0, column=i, padx=10, pady=10)
-            self.themed_widgets["buttons"].extend([
-                (card_button, "fg_color", "inner_card_bg"),
-                (card_button, "hover_color", "button_hover")
-            ])
+            if i == len(why_us_lines) - 1:
+                label.pack(anchor="w", padx=20, pady=(1, 10))  # Збільшуємо нижній відступ
+            else:
+                label.pack(anchor="w", padx=20, pady=1)
+            self.themed_widgets["labels"].append((label, "text_color", None))
+
+        # ------- Картка: Спільнота -------
+        community_lines = random.choice([
+            [
+                "💬 «Мотивує повертатися до тренувань щодня!» — Олена, 29",
+                "💬 «Спільнота допомагає не здаватися на шляху!» — Артем, 34",
+                "💬 «Гнучкі плани і стильний дизайн — ідеально!» — Ірина, 22",
+                "💬 «Додаток, який змінив мої звички!» — Максим, 30",
+            ],
+            [
+                "💬 «Змінив мій підхід до фітнесу назавжди!» — Марія, 27",
+                "💬 «Підтримка спільноти — це справжня сила!» — Олег, 31",
+                "💬 «Зручний інтерфейс і надихаючі плани!» — Софія, 25",
+                "💬 «Тренування стали частиною життя!» — Віктор, 33",
+            ],
+            [
+                "💬 «Тренування — тепер мій щоденний ритуал!» — Анна, 30",
+                "💬 «Спільнота заряджає енергією та мотивацією!» — Дмитро, 28",
+                "💬 «Найкращий додаток для фітнесу, що я пробувала!» — Ольга, 23",
+                "💬 «Простота і ефективність у кожному кроці!» — Юлія, 26",
+            ],
+        ])
+
+        community_card = ctk.CTkFrame(
+            cards_container,
+            fg_color=self.theme_colors["dark"]["card_bg"],
+            corner_radius=15,
+            border_width=0
+        )
+        community_card.grid(row=0, column=1, sticky="nsew", padx=(5, 0), pady=5)
+        self.themed_widgets["frames"].append((community_card, "fg_color", "card_bg"))
+
+        community_title = ctk.CTkLabel(
+            community_card,
+            text="👥 Що каже наша спільнота",
+            font=("Roboto", 17, "bold"),
+            text_color=self.theme_colors["dark"]["text_accent"],
+            anchor="w", justify="left"
+        )
+        community_title.pack(anchor="w", padx=15, pady=(15, 5))
+        self.themed_widgets["labels"].append((community_title, "text_color", "text_accent"))
+
+        for i, line in enumerate(community_lines):
+            factor = i / (len(community_lines) - 1) if len(community_lines) > 1 else 0  # Фактор для градієнта
+            gradient_color_rgb = interpolate_color(start_color, end_color, factor)
+            # Конвертуємо RGB у hex
+            gradient_color_hex = f"#{gradient_color_rgb[0]:02x}{gradient_color_rgb[1]:02x}{gradient_color_rgb[2]:02x}"
+            label = ctk.CTkLabel(
+                community_card,
+                text=line,
+                font=("Roboto", 13, "bold"),
+                text_color=gradient_color_hex,
+                anchor="w", justify="left",
+                wraplength=480
+            )
+            if i == len(community_lines) - 1:
+                label.pack(anchor="w", padx=20, pady=(1, 10))  # Збільшуємо нижній відступ
+            else:
+                label.pack(anchor="w", padx=20, pady=1)
+            self.themed_widgets["labels"].append((label, "text_color", None))
 
     def animate_fade_in(self, widget, duration=500, steps=20):
         for i in range(steps):
@@ -2824,13 +2118,11 @@ class TrainingApplication(ctk.CTk):
         modal.focus_set()
 
     def toggle_muscle_selection(self, group, var, muscle_inputs, button):
-        var.set(not var.get())  # Перемикання стану вибору
-        # Оновлення кольору кнопки
+        var.set(not var.get())
         button.configure(
             fg_color=self.theme_colors[self.theme_var.get()]["button_active"] if var.get() else
             self.theme_colors[self.theme_var.get()]["button_fg"]
         )
-        # Оновлення themed_widgets для fg_color
         for i, (w, attr, color_key, *extra) in enumerate(self.themed_widgets["buttons"]):
             if w == button and attr == "fg_color":
                 self.themed_widgets["buttons"][i] = (
@@ -2839,22 +2131,25 @@ class TrainingApplication(ctk.CTk):
                 break
 
     def save_profile(self, inputs, modal):
-        try:
-            profile_inputs = {
-                "gender": inputs["gender"].get(),
-                "weight": inputs["weight"].get() or str(self.user_profile._weight),
-                "height": inputs["height"].get() or str(self.user_profile._height),
-                "fitness_level": inputs["fitness_level"].get(),
-                "muscle_groups": [g for g, v, _ in inputs["muscle_groups"] if v.get()],
-                "difficulty": inputs["difficulty"].get()
-            }
-            if self.profile_manager.fill_user_profile(self.user_profile, profile_inputs):
-                self.update_profile_display()  # Оновлюємо відображення профілю
-                modal.destroy()  # Закриваємо модальне вікно
-            else:
-                self._show_error("Помилка при оновленні профілю.")
-        except ValueError as e:
-            self._show_error(str(e))
+        profile_inputs = {
+            "gender": inputs["gender"].get(),
+            "weight": inputs["weight"].get(),
+            "height": inputs["height"].get(),
+            "fitness_level": inputs["fitness_level"].get(),
+            "muscle_groups": [g for g, v, _ in inputs["muscle_groups"] if v.get()],
+            "difficulty": inputs["difficulty"].get()
+        }
+        result = self.profile_manager.fill_user_profile(self.user_profile, profile_inputs)
+        if result is True:
+            self.update_profile_display()
+            modal.destroy()
+        else:
+            self._show_error(result)
+
+    def delete_profile(self):
+        self.profile_manager.delete_user_profile()
+        self.user_profile = UserProfile()
+        self.update_profile_display()
 
     def _show_error(self, message):
         modal = ctk.CTkToplevel(self)
@@ -2930,7 +2225,6 @@ class TrainingApplication(ctk.CTk):
 
     def quit_application(self):
         self.destroy()
-
 
 
 if __name__ == "__main__":
